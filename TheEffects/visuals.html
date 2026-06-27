@@ -2989,7 +2989,674 @@ function drawSystemDream(){
     }
 
 }
-
+let matrixState = { cols: [], hue: 120 };
+ 
+function initMatrixRain() {
+  const cols = Math.floor(w / 16);
+  matrixState.cols = Array.from({ length: cols }, () => ({
+    y:     Math.random() * h,
+    speed: 1 + Math.random() * 4,
+    len:   8  + Math.floor(Math.random() * 24),
+    chars: [],
+    mutTimer: 0,
+  }));
+  matrixState.hue = 120;
+}
+ 
+function drawMatrixRain() {
+  // Slow fade
+  ctx.fillStyle = 'rgba(0,0,0,0.045)';
+  ctx.fillRect(0, 0, w, h);
+ 
+  matrixState.hue = (matrixState.hue + 0.04) % 360;
+  const hue = matrixState.hue;
+  const charSet = '日ﾊｦｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789ABCDEF';
+  const size = 16;
+ 
+  matrixState.cols.forEach((col, i) => {
+    col.mutTimer++;
+    if (col.mutTimer > 4 + Math.random() * 6) {
+      col.chars.push(charSet[Math.floor(Math.random() * charSet.length)]);
+      if (col.chars.length > col.len) col.chars.shift();
+      col.mutTimer = 0;
+    }
+ 
+    col.y += col.speed;
+    if (col.y > h + col.len * size) {
+      col.y = -col.len * size;
+      col.speed = 1 + Math.random() * 4;
+      col.len   = 8 + Math.floor(Math.random() * 24);
+    }
+ 
+    col.chars.forEach((ch, ci) => {
+      const alpha = (ci / col.len);
+      const bright = ci === col.chars.length - 1;
+      ctx.fillStyle = bright
+        ? `hsla(${hue},100%,95%,${alpha})`
+        : `hsla(${hue},90%,55%,${alpha * 0.85})`;
+      ctx.font = `${size}px monospace`;
+      ctx.fillText(ch, i * size, col.y - (col.chars.length - ci) * size);
+    });
+  });
+}
+ 
+// ═══════════════════════════════════════════════════════════════════════════════
+// EFFECT 2 — DEEP STARS (parallax layers + nebula wisps)
+// ═══════════════════════════════════════════════════════════════════════════════
+let starsState = { stars: [], wisps: [] };
+ 
+function initDeepStars() {
+  starsState.stars = Array.from({ length: 600 }, () => ({
+    x: Math.random() * w,
+    y: Math.random() * h,
+    z: Math.random(),       // depth 0..1
+    r: Math.random() * 1.5 + 0.3,
+    hue: Math.random() * 60 + 200,
+    twinkle: Math.random() * Math.PI * 2,
+  }));
+  starsState.wisps = Array.from({ length: 5 }, () => ({
+    x: Math.random() * w,
+    y: Math.random() * h,
+    vx: (Math.random() - 0.5) * 0.08,
+    vy: (Math.random() - 0.5) * 0.08,
+    r: 120 + Math.random() * 200,
+    hue: Math.random() * 360,
+  }));
+}
+ 
+function drawDeepStars() {
+  ctx.fillStyle = 'rgba(0,0,5,0.18)';
+  ctx.fillRect(0, 0, w, h);
+ 
+  // Nebula wisps
+  starsState.wisps.forEach(wp => {
+    wp.x += wp.vx; wp.y += wp.vy;
+    if (wp.x < -wp.r) wp.x = w + wp.r;
+    if (wp.x > w + wp.r) wp.x = -wp.r;
+    if (wp.y < -wp.r) wp.y = h + wp.r;
+    if (wp.y > h + wp.r) wp.y = -wp.r;
+    const g = ctx.createRadialGradient(wp.x, wp.y, 0, wp.x, wp.y, wp.r);
+    g.addColorStop(0,   `hsla(${wp.hue},80%,35%,0.04)`);
+    g.addColorStop(0.5, `hsla(${wp.hue},70%,25%,0.02)`);
+    g.addColorStop(1,   'transparent');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(wp.x, wp.y, wp.r, 0, Math.PI * 2);
+    ctx.fill();
+  });
+ 
+  // Stars
+  starsState.stars.forEach(s => {
+    s.twinkle += 0.02 + s.z * 0.02;
+    const speed = 0.05 + s.z * 0.35;
+    s.x -= speed;
+    if (s.x < 0) { s.x = w; s.y = Math.random() * h; }
+    const alpha  = 0.4 + Math.sin(s.twinkle) * 0.4 + s.z * 0.2;
+    const radius = s.r + Math.sin(s.twinkle * 0.7) * 0.4 * s.z;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = `hsla(${s.hue},${60 + s.z * 40}%,${80 + s.z * 20}%,${alpha})`;
+    ctx.fill();
+  });
+}
+ 
+// ═══════════════════════════════════════════════════════════════════════════════
+// EFFECT 3 — SWARM INTELLIGENCE (boids-like emergent flock)
+// ═══════════════════════════════════════════════════════════════════════════════
+let swarmState = { agents: [], hue: 0 };
+ 
+function initSuperSwarm() {
+  swarmState.agents = Array.from({ length: 220 }, () => ({
+    x: Math.random() * w,
+    y: Math.random() * h,
+    vx: (Math.random() - 0.5) * 2,
+    vy: (Math.random() - 0.5) * 2,
+    history: [],
+    age: Math.random() * 200,
+  }));
+  swarmState.hue = 0;
+}
+ 
+function drawSuperSwarm() {
+  ctx.fillStyle = 'rgba(0,0,0,0.05)';
+  ctx.fillRect(0, 0, w, h);
+ 
+  swarmState.hue = (swarmState.hue + 0.15) % 360;
+  const hue = swarmState.hue;
+ 
+  const SEP = 28, ALI = 80, COH = 120;
+ 
+  swarmState.agents.forEach(a => {
+    a.age++;
+    let sx=0,sy=0, ax=0,ay=0, cx=0,cy=0;
+    let ns=0, na=0;
+ 
+    swarmState.agents.forEach(b => {
+      if (b === a) return;
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const d  = Math.sqrt(dx*dx + dy*dy);
+      if (d < SEP) { sx -= dx/d; sy -= dy/d; }
+      if (d < ALI) { ax += b.vx; ay += b.vy; na++; }
+      if (d < COH) { cx += b.x; cy += b.y; ns++; }
+    });
+ 
+    if (na) { a.vx += (ax/na - a.vx) * 0.04; a.vy += (ay/na - a.vy) * 0.04; }
+    if (ns) { a.vx += (cx/ns - a.x) * 0.0006; a.vy += (cy/ns - a.y) * 0.0006; }
+    a.vx += sx * 0.12; a.vy += sy * 0.12;
+ 
+    // Add slight wander
+    a.vx += (Math.random()-0.5)*0.15;
+    a.vy += (Math.random()-0.5)*0.15;
+ 
+    const spd = Math.sqrt(a.vx*a.vx + a.vy*a.vy);
+    if (spd > 3.2) { a.vx = a.vx/spd*3.2; a.vy = a.vy/spd*3.2; }
+ 
+    a.x += a.vx; a.y += a.vy;
+    if (a.x < 0) a.x = w; if (a.x > w) a.x = 0;
+    if (a.y < 0) a.y = h; if (a.y > h) a.y = 0;
+ 
+    a.history.push({ x: a.x, y: a.y });
+    if (a.history.length > 14) a.history.shift();
+ 
+    if (a.history.length > 1) {
+      ctx.beginPath();
+      ctx.moveTo(a.history[0].x, a.history[0].y);
+      a.history.forEach(p => ctx.lineTo(p.x, p.y));
+      const speed_norm = spd / 3.2;
+      ctx.strokeStyle = `hsla(${(hue + speed_norm*60)%360},85%,65%,0.6)`;
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+    }
+  });
+}
+ 
+// ═══════════════════════════════════════════════════════════════════════════════
+// EFFECT 4 — CRYSTAL GROWTH (DLA-like diffusion limited aggregation)
+// ═══════════════════════════════════════════════════════════════════════════════
+let crystalState = { grid: null, walkers: [], hue: 200, frame: 0 };
+ 
+function initCrystalGrowth() {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, w, h);
+  const cols = Math.floor(w / 4);
+  const rows = Math.floor(h / 4);
+  const grid = new Uint8Array(cols * rows);
+  // Seed: center cross
+  const cx = Math.floor(cols/2), cy = Math.floor(rows/2);
+  for (let i=-2;i<=2;i++) { grid[cy*cols+cx+i]=1; grid[(cy+i)*cols+cx]=1; }
+  crystalState.grid = grid;
+  crystalState.cols = cols;
+  crystalState.rows = rows;
+  crystalState.walkers = Array.from({length:80}, () => ({
+    x: Math.floor(Math.random()*cols),
+    y: Math.floor(Math.random()*rows),
+    age: 0,
+  }));
+  crystalState.hue = 180 + Math.random()*120;
+  crystalState.frame = 0;
+  crystalState.attached = 0;
+}
+ 
+function drawCrystal() {
+  crystalState.frame++;
+  const { grid, cols, rows, walkers } = crystalState;
+  const cs = 4; // cell size
+ 
+  for (let step = 0; step < 30; step++) {
+    walkers.forEach(wk => {
+      wk.x += Math.round(Math.random()*2-1);
+      wk.y += Math.round(Math.random()*2-1);
+      wk.x = (wk.x + cols) % cols;
+      wk.y = (wk.y + rows) % rows;
+      wk.age++;
+ 
+      const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+      for (const [dx,dy] of dirs) {
+        const nx = (wk.x+dx+cols)%cols, ny = (wk.y+dy+rows)%rows;
+        if (grid[ny*cols+nx]) {
+          grid[wk.y*cols+wk.x] = 1;
+          crystalState.attached++;
+          const hue = (crystalState.hue + wk.age*0.4) % 360;
+          const bright = 55 + Math.sin(crystalState.attached * 0.02) * 20;
+          ctx.fillStyle = `hsl(${hue},90%,${bright}%)`;
+          ctx.fillRect(wk.x*cs, wk.y*cs, cs, cs);
+          wk.x = Math.floor(Math.random()*cols);
+          wk.y = Math.floor(Math.random()*rows);
+          wk.age = 0;
+          break;
+        }
+      }
+    });
+  }
+ 
+  // Slow fade periodically to allow regrowth
+  if (crystalState.attached > cols*rows*0.55) {
+    ctx.fillStyle = 'rgba(0,0,0,0.005)';
+    ctx.fillRect(0,0,w,h);
+    if (crystalState.attached > cols*rows*0.7) {
+      initCrystalGrowth();
+    }
+  }
+}
+ 
+// ═══════════════════════════════════════════════════════════════════════════════
+// EFFECT 5 — GLITCH TERMINAL (fake system output + corruptions)
+// ═══════════════════════════════════════════════════════════════════════════════
+let glitchState = { lines: [], timer: 0, glitchTimer: 0, scanY: 0 };
+ 
+const GLITCH_LINES = [
+  '> SYSTEM BOOT... [OK]',
+  '> LOADING MODULES ████████░░░░ 74%',
+  '> WARNING: MEMORY SECTOR 0x4F2A CORRUPT',
+  '> KERNEL PANIC — NOT SYNCING',
+  '> ATTEMPTING RECOVERY...',
+  '> ERR: NULL PTR DEREF AT 0x0000000000000000',
+  '> SPAWNING DAEMONS: 8 / 8... [OK]',
+  '> SIGNAL 11 (SIGSEGV) RECEIVED',
+  '> MOUNTING /dev/loop0 → /mnt/ghost... [FAIL]',
+  '> RETRYING IN 3... 2... 1...',
+  '> CORE DUMP WRITTEN TO /tmp/.dump_4x9',
+  '> ENTROPY POOL DRAINED — BLOCKING',
+  '> FORK BOMB DETECTED: CONTAINING...',
+  '> ██████ CLASSIFIED ██████',
+  '> LAST LOGIN: ??? FROM 192.168.0.0',
+  '> SCANNING NEURAL SECTORS... ANOMALY FOUND',
+  '> RECURSIVE PROCESS TREE DEPTH: 8192',
+  '> STACK SMASH DETECTED — EXECUTING HANDLER',
+  '> pid 1 exited with status 139',
+];
+ 
+function initGlitchTerminal() {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, w, h);
+  glitchState.lines = [];
+  glitchState.timer = 0;
+  glitchState.scanY = 0;
+}
+ 
+function drawGlitchTerminal() {
+  // Slow fade (CRT persistence)
+  ctx.fillStyle = 'rgba(0,0,0,0.06)';
+  ctx.fillRect(0, 0, w, h);
+ 
+  glitchState.timer++;
+  glitchState.glitchTimer++;
+ 
+  const fontSize = 13;
+  const lineH = fontSize + 5;
+  ctx.font = `${fontSize}px "Courier New", monospace`;
+ 
+  // Add new line periodically
+  if (glitchState.timer % 14 === 0) {
+    const raw = GLITCH_LINES[Math.floor(Math.random() * GLITCH_LINES.length)];
+    // Corrupt some chars
+    const corrupt = raw.split('').map(c =>
+      Math.random() < 0.04
+        ? String.fromCharCode(33 + Math.floor(Math.random() * 90))
+        : c
+    ).join('');
+    glitchState.lines.push({
+      text: corrupt,
+      y: 40 + glitchState.lines.length * lineH,
+      hue: Math.random() < 0.8 ? 120 : (Math.random() < 0.5 ? 0 : 200),
+      alpha: 1,
+      glitchOffset: 0,
+    });
+    if (glitchState.lines.length > Math.floor((h - 80) / lineH)) {
+      glitchState.lines.shift();
+      glitchState.lines.forEach((l, i) => l.y = 40 + i * lineH);
+    }
+  }
+ 
+  // Render lines
+  glitchState.lines.forEach(l => {
+    l.alpha = Math.max(0.1, l.alpha - 0.001);
+    // Random horizontal jitter on some lines
+    const jitter = Math.random() < 0.02 ? (Math.random()-0.5)*20 : 0;
+    ctx.fillStyle = `hsla(${l.hue},90%,${l.hue===0?60:55}%,${l.alpha})`;
+    ctx.fillText(l.text, 32 + jitter, l.y);
+ 
+    // RGB fringe on jitter
+    if (jitter !== 0) {
+      ctx.fillStyle = `hsla(0,100%,60%,0.3)`;
+      ctx.fillText(l.text, 34 + jitter, l.y);
+      ctx.fillStyle = `hsla(200,100%,60%,0.3)`;
+      ctx.fillText(l.text, 30 + jitter, l.y);
+    }
+  });
+ 
+  // CRT scanlines
+  if (glitchState.timer % 2 === 0) {
+    glitchState.scanY = (glitchState.scanY + 3) % h;
+    ctx.fillStyle = 'rgba(255,255,255,0.015)';
+    ctx.fillRect(0, glitchState.scanY, w, 2);
+  }
+ 
+  // Occasional full-line glitch tear
+  if (glitchState.glitchTimer % 37 === 0) {
+    const ty = Math.floor(Math.random() * h);
+    const tw = Math.floor(Math.random() * w * 0.7) + 20;
+    const tx = Math.floor(Math.random() * (w - tw));
+    const imgData = ctx.getImageData(0, ty, w, 4);
+    ctx.putImageData(imgData, (Math.random()-0.5)*40, ty + Math.floor(Math.random()*20-10));
+  }
+ 
+  // Header
+  ctx.fillStyle = 'rgba(0,255,80,0.6)';
+  ctx.font = 'bold 11px "Courier New"';
+  ctx.fillText(`SYS://DREAM_OS v0.${(glitchState.timer % 99).toString().padStart(2,'0')} — CORE ${(glitchState.timer * 0.03).toFixed(3)}MHz — ERR:${Math.floor(glitchState.timer*0.7)%9999}`, 32, 22);
+}
+ 
+// ═══════════════════════════════════════════════════════════════════════════════
+// EFFECT 6 — WARP TUNNEL (hyperspace vortex)
+// ═══════════════════════════════════════════════════════════════════════════════
+let warpState = { particles: [], hue: 240 };
+ 
+function initWarpTunnel() {
+  warpState.particles = Array.from({ length: 300 }, () => newWarpParticle());
+  warpState.hue = 240;
+}
+ 
+function newWarpParticle() {
+  const angle = Math.random() * Math.PI * 2;
+  const dist  = Math.random() * 0.05;
+  return {
+    angle,
+    dist,
+    speed: 0.004 + Math.random() * 0.012,
+    spin:  (Math.random()-0.5)*0.02,
+    hue:   Math.random()*60 + 200,
+    width: Math.random() * 2 + 0.5,
+  };
+}
+ 
+function drawWarpTunnel() {
+  ctx.fillStyle = 'rgba(0,0,8,0.2)';
+  ctx.fillRect(0, 0, w, h);
+ 
+  warpState.hue = (warpState.hue + 0.08) % 360;
+  const cx = w/2, cy = h/2;
+  const maxR = Math.sqrt(cx*cx + cy*cy);
+ 
+  warpState.particles.forEach(p => {
+    p.dist  += p.speed * (0.5 + p.dist * 2.5);
+    p.angle += p.spin;
+ 
+    if (p.dist > 1.2) Object.assign(p, newWarpParticle());
+ 
+    const r = p.dist * maxR;
+    const x = cx + Math.cos(p.angle) * r;
+    const y = cy + Math.sin(p.angle) * r * 0.55;
+ 
+    const alpha = Math.min(1, p.dist * 2);
+    const hue   = (p.hue + p.dist * 120) % 360;
+    const streak = Math.max(2, p.speed * 5000 * p.dist);
+ 
+    const x2 = cx + Math.cos(p.angle) * (r - streak);
+    const y2 = cy + Math.sin(p.angle) * ((r - streak) * 0.55);
+ 
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x, y);
+    ctx.strokeStyle = `hsla(${hue},95%,70%,${alpha})`;
+    ctx.lineWidth = p.width * (0.5 + p.dist);
+    ctx.stroke();
+  });
+ 
+  // Vortex core glow
+  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, 120);
+  g.addColorStop(0, `hsla(${warpState.hue},100%,80%,0.08)`);
+  g.addColorStop(1, 'transparent');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 120, 0, Math.PI * 2);
+  ctx.fill();
+}
+ 
+// ═══════════════════════════════════════════════════════════════════════════════
+// EFFECT 7 — NEURONS (synaptic pulse network)
+// ═══════════════════════════════════════════════════════════════════════════════
+let neuronsState = { nodes: [], pulses: [], hue: 260, timer: 0 };
+ 
+function initNeurons() {
+  const N = 80;
+  neuronsState.nodes = Array.from({ length: N }, () => ({
+    x: Math.random() * w,
+    y: Math.random() * h,
+    vx: (Math.random()-0.5)*0.3,
+    vy: (Math.random()-0.5)*0.3,
+    r: 2 + Math.random()*3,
+    hue: 240 + Math.random()*80,
+    energy: 0,
+    fireTimer: Math.random()*120,
+  }));
+  neuronsState.pulses = [];
+  neuronsState.hue = 260;
+  neuronsState.timer = 0;
+}
+ 
+function drawNeurons() {
+  ctx.fillStyle = 'rgba(0,0,0,0.08)';
+  ctx.fillRect(0, 0, w, h);
+ 
+  neuronsState.hue = (neuronsState.hue + 0.05) % 360;
+  neuronsState.timer++;
+  const { nodes, pulses } = neuronsState;
+ 
+  // Move nodes slowly
+  nodes.forEach(n => {
+    n.x += n.vx; n.y += n.vy;
+    if (n.x < 0 || n.x > w) n.vx *= -1;
+    if (n.y < 0 || n.y > h) n.vy *= -1;
+    n.energy = Math.max(0, n.energy - 0.02);
+    n.fireTimer--;
+    if (n.fireTimer < 0) {
+      n.fireTimer = 60 + Math.random()*120;
+      n.energy = 1;
+      // Fire along connections
+      nodes.forEach(m => {
+        if (m === n) return;
+        const dx = m.x-n.x, dy = m.y-n.y;
+        const d = Math.sqrt(dx*dx+dy*dy);
+        if (d < 180 && Math.random() < 0.4) {
+          pulses.push({ x: n.x, y: n.y, tx: m.x, ty: m.y,
+            sx: n.x, sy: n.y, prog: 0,
+            speed: 0.015 + Math.random()*0.02,
+            hue: (n.hue + Math.random()*40) % 360,
+            src: n, dst: m });
+        }
+      });
+    }
+  });
+ 
+  const CONN_DIST = 180;
+  // Draw connections
+  nodes.forEach((n, i) => {
+    nodes.forEach((m, j) => {
+      if (j <= i) return;
+      const dx = m.x-n.x, dy = m.y-n.y;
+      const d = Math.sqrt(dx*dx+dy*dy);
+      if (d < CONN_DIST) {
+        const alpha = (1 - d/CONN_DIST) * 0.12;
+        ctx.beginPath();
+        ctx.moveTo(n.x, n.y); ctx.lineTo(m.x, m.y);
+        ctx.strokeStyle = `hsla(${(n.hue+m.hue)/2},70%,60%,${alpha})`;
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+      }
+    });
+  });
+ 
+  // Draw nodes
+  nodes.forEach(n => {
+    const glow = 6 + n.energy * 16;
+    const g = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, glow);
+    g.addColorStop(0, `hsla(${n.hue},100%,80%,${0.5 + n.energy * 0.5})`);
+    g.addColorStop(1, 'transparent');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, glow, 0, Math.PI*2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, n.r, 0, Math.PI*2);
+    ctx.fillStyle = `hsla(${n.hue},100%,90%,0.9)`;
+    ctx.fill();
+  });
+ 
+  // Animate pulses
+  for (let i = pulses.length - 1; i >= 0; i--) {
+    const p = pulses[i];
+    p.prog += p.speed;
+    if (p.prog >= 1) {
+      p.dst.energy = Math.min(1, p.dst.energy + 0.6);
+      pulses.splice(i, 1);
+      continue;
+    }
+    const px = p.sx + (p.tx - p.sx) * p.prog;
+    const py = p.sy + (p.ty - p.sy) * p.prog;
+    ctx.beginPath();
+    ctx.arc(px, py, 3, 0, Math.PI*2);
+    ctx.fillStyle = `hsla(${p.hue},100%,80%,${0.9 - p.prog*0.5})`;
+    ctx.fill();
+    // Tail
+    const tail = Math.max(0, p.prog - 0.12);
+    const tx2 = p.sx + (p.tx-p.sx)*tail;
+    const ty2 = p.sy + (p.ty-p.sy)*tail;
+    ctx.beginPath();
+    ctx.moveTo(tx2, ty2); ctx.lineTo(px, py);
+    ctx.strokeStyle = `hsla(${p.hue},100%,70%,0.5)`;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+}
+ 
+// ═══════════════════════════════════════════════════════════════════════════════
+// EFFECT 8 — LENIA-LIKE (continuous cellular automaton, wave-like life)
+// ═══════════════════════════════════════════════════════════════════════════════
+let leniaState = { gridA: null, gridB: null, cols: 0, rows: 0, hue: 0, frame: 0 };
+ 
+function initLenia() {
+  const scale = 4;
+  const cols = Math.floor(w / scale);
+  const rows = Math.floor(h / scale);
+  leniaState.cols = cols;
+  leniaState.rows = rows;
+  leniaState.scale = scale;
+  leniaState.hue = Math.random()*360;
+  leniaState.frame = 0;
+ 
+  const gridA = new Float32Array(cols * rows);
+  const gridB = new Float32Array(cols * rows);
+ 
+  // Seed with random blobs
+  for (let b = 0; b < 8; b++) {
+    const bx = Math.floor(Math.random()*cols);
+    const by = Math.floor(Math.random()*rows);
+    const br = 10 + Math.floor(Math.random()*20);
+    for (let dy=-br;dy<=br;dy++) {
+      for (let dx=-br;dx<=br;dx++) {
+        const d = Math.sqrt(dx*dx+dy*dy);
+        if (d <= br) {
+          const nx = (bx+dx+cols)%cols;
+          const ny = (by+dy+rows)%rows;
+          gridA[ny*cols+nx] = Math.max(gridA[ny*cols+nx], Math.exp(-d*d/(br*br*0.3)));
+        }
+      }
+    }
+  }
+  leniaState.gridA = gridA;
+  leniaState.gridB = gridB;
+}
+ 
+function drawLenia() {
+  const { gridA, gridB, cols, rows, scale } = leniaState;
+  leniaState.hue = (leniaState.hue + 0.08) % 360;
+  leniaState.frame++;
+ 
+  const K = 13; // kernel radius
+  const mu = 0.15, sigma = 0.017, dt = 0.1;
+ 
+  // Update
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      let sum = 0, count = 0;
+      for (let dy = -K; dy <= K; dy++) {
+        for (let dx = -K; dx <= K; dx++) {
+          const d = Math.sqrt(dx*dx+dy*dy);
+          if (d > K) continue;
+          const r = d / K;
+          const kernel = Math.exp(-((r-0.5)*(r-0.5))/(2*0.2*0.2));
+          const nx = (x+dx+cols)%cols, ny = (y+dy+rows)%rows;
+          sum += gridA[ny*cols+nx] * kernel;
+          count += kernel;
+        }
+      }
+      const U = sum / count;
+      const growth = 2 * Math.exp(-((U-mu)*(U-mu))/(2*sigma*sigma)) - 1;
+      gridB[y*cols+x] = Math.max(0, Math.min(1, gridA[y*cols+x] + dt * growth));
+    }
+  }
+ 
+  // Swap buffers
+  gridA.set(gridB);
+ 
+  // Render
+  const imgData = ctx.createImageData(cols, rows);
+  const hue = leniaState.hue;
+  for (let i = 0; i < cols*rows; i++) {
+    const v = gridA[i];
+    // Map value to color
+    const h2 = (hue + v * 120) % 360;
+    const s = 0.8, l = v * 0.7;
+    // HSL to RGB inline
+    const [r,g,b] = hslToRgb(h2/360, s, l);
+    imgData.data[i*4  ] = r;
+    imgData.data[i*4+1] = g;
+    imgData.data[i*4+2] = b;
+    imgData.data[i*4+3] = 255;
+  }
+  // Draw scaled up
+  const offscreen = document.createElement('canvas');
+  offscreen.width = cols; offscreen.height = rows;
+  offscreen.getContext('2d').putImageData(imgData, 0, 0);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'low';
+  ctx.drawImage(offscreen, 0, 0, w, h);
+ 
+  // Occasionally re-seed if population dies
+  if (leniaState.frame % 500 === 0) {
+    let total = 0;
+    for (let i=0;i<gridA.length;i++) total+=gridA[i];
+    if (total < gridA.length * 0.01) initLenia();
+  }
+}
+ 
+function hslToRgb(h, s, l) {
+  let r,g,b;
+  if (s === 0) { r=g=b=l; } else {
+    const q = l < 0.5 ? l*(1+s) : l+s-l*s;
+    const p = 2*l-q;
+    r = hue2rgb(p,q,h+1/3);
+    g = hue2rgb(p,q,h);
+    b = hue2rgb(p,q,h-1/3);
+  }
+  return [Math.round(r*255),Math.round(g*255),Math.round(b*255)];
+}
+function hue2rgb(p,q,t) {
+  if(t<0)t+=1; if(t>1)t-=1;
+  if(t<1/6)return p+(q-p)*6*t;
+  if(t<1/2)return q;
+  if(t<2/3)return p+(q-p)*(2/3-t)*6;
+  return p;
+}
+initMatrixRain();
+initDeepStars();
+initSuperSwarm();
+initCrystalGrowth();
+initGlitchTerminal();
+initWarpTunnel();
+initNeurons();
+initLenia();
 
 /////////////////////////////////////////////////
 // ANIMATE
@@ -3220,6 +3887,37 @@ case "artificialweather":
 
 case "dream":
     drawSystemDream();
+    break;
+    case "matrixrain":
+    drawMatrixRain();
+    break;
+
+case "deepstars":
+    drawDeepStars();
+    break;
+
+case "superswarm":
+    drawSuperSwarm();
+    break;
+
+case "crystalgrowth":
+    drawCrystalGrowth();
+    break;
+
+case "glitchterminal":
+    drawGlitchTerminal();
+    break;
+
+case "warptunnel":
+    drawWarpTunnel();
+    break;
+
+case "neurons":
+    drawNeurons();
+    break;
+
+case "lenia":
+    drawLenia();
     break;
     }
     
