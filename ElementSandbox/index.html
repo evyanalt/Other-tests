@@ -1,0 +1,664 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Elemental Sandbox</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: #1e293b;
+            --text-color: #f8fafc;
+            --accent: #38bdf8;
+            --accent-hover: #0ea5e9;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            overflow: hidden;
+        }
+
+        #ui-panel {
+            width: 300px;
+            background-color: var(--panel-bg);
+            border-right: 2px solid #334155;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            box-shadow: 5px 0 15px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin-top: 0;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--accent);
+            text-align: center;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 15px;
+        }
+
+        .control-group {
+            margin-bottom: 25px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            color: #cbd5e1;
+        }
+
+        .element-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .element-btn {
+            background-color: #334155;
+            border: 2px solid transparent;
+            color: white;
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s ease;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+
+        .element-btn:hover {
+            background-color: #475569;
+            transform: scale(1.02);
+        }
+
+        .element-btn.active {
+            border-color: var(--accent);
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+        }
+
+        input[type=range] {
+            width: 100%;
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+
+        .stats {
+            margin-top: auto;
+            font-family: monospace;
+            background: #0f172a;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            font-size: 0.9rem;
+        }
+
+        .stats span {
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        #canvas-container {
+            flex-grow: 1;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+        }
+
+        canvas {
+            background-color: #000;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+            border: 1px solid #334155;
+            cursor: crosshair;
+            image-rendering: pixelated;
+        }
+
+        .btn-action {
+            width: 100%;
+            padding: 12px;
+            margin-top: 10px;
+            background-color: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: background 0.2s;
+        }
+        .btn-action:hover {
+            background-color: #dc2626;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="ui-panel">
+        <h1>Elemental Sandbox</h1>
+        
+        <div class="control-group">
+            <label>Elements</label>
+            <div class="element-grid" id="element-buttons">
+                </div>
+        </div>
+
+        <div class="control-group">
+            <label>Brush Size: <span id="brush-size-val">3</span></label>
+            <input type="range" id="brush-size" min="1" max="20" value="3">
+        </div>
+
+        <button class="btn-action" id="btn-clear">Clear World</button>
+
+        <div class="stats">
+            <div>FPS: <span id="fps-counter">0</span></div>
+            <div>Particles: <span id="particle-counter">0</span></div>
+        </div>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="sandbox"></canvas>
+    </div>
+
+    <script>
+        /**
+         * ADVANCED CELLULAR AUTOMATA PHYSICS ENGINE
+         * Defines particle types, behaviors, and reactions.
+         */
+
+        const canvas = document.getElementById('sandbox');
+        const ctx = canvas.getContext('2d', { alpha: false });
+        
+        // World parameters
+        const SCALE = 4; // Size of each pixel/particle
+        const WIDTH = Math.floor(800 / SCALE);
+        const HEIGHT = Math.floor(600 / SCALE);
+        
+        canvas.width = WIDTH * SCALE;
+        canvas.height = HEIGHT * SCALE;
+
+        // Element IDs
+        const EL = {
+            EMPTY: 0,
+            SAND: 1,
+            WATER: 2,
+            STONE: 3,
+            WOOD: 4,
+            FIRE: 5,
+            SMOKE: 6,
+            PLANT: 7,
+            ACID: 8
+        };
+
+        // Element properties and colors
+        const ELEMENTS = {
+            [EL.EMPTY]: { name: "Eraser", color: "#000000", density: 0, type: "gas" },
+            [EL.SAND]: { name: "Sand", color: "#eab308", density: 10, type: "powder", friction: 0.8 },
+            [EL.WATER]: { name: "Water", color: "#3b82f6", density: 5, type: "liquid", dispersion: 5 },
+            [EL.STONE]: { name: "Stone", color: "#64748b", density: 100, type: "solid" },
+            [EL.WOOD]: { name: "Wood", color: "#78350f", density: 50, type: "solid", flammability: 0.05 },
+            [EL.FIRE]: { name: "Fire", color: "#ef4444", density: 1, type: "energy", life: 30 },
+            [EL.SMOKE]: { name: "Smoke", color: "#94a3b8", density: 0.5, type: "gas", life: 80 },
+            [EL.PLANT]: { name: "Plant", color: "#22c55e", density: 60, type: "solid", flammability: 0.1 },
+            [EL.ACID]: { name: "Acid", color: "#84cc16", density: 4, type: "liquid", dispersion: 2 }
+        };
+
+        // Palette with slight color variations for visual depth
+        const getColorVariant = (baseColor) => {
+            if (baseColor === "#000000") return [0, 0, 0];
+            const hex = baseColor.replace('#', '');
+            let r = parseInt(hex.substring(0, 2), 16);
+            let g = parseInt(hex.substring(2, 4), 16);
+            let b = parseInt(hex.substring(4, 6), 16);
+            
+            // Add noise
+            const noise = Math.floor(Math.random() * 30) - 15;
+            r = Math.min(255, Math.max(0, r + noise));
+            g = Math.min(255, Math.max(0, g + noise));
+            b = Math.min(255, Math.max(0, b + noise));
+            
+            return [r, g, b];
+        };
+
+        // Grid initialization
+        let grid = new Int32Array(WIDTH * HEIGHT); // Stores Element IDs
+        let colorGrid = new Uint8ClampedArray(WIDTH * HEIGHT * 3); // Stores RGB values for fast rendering
+        let lifeGrid = new Int16Array(WIDTH * HEIGHT); // Stores particle lifetime (for fire/smoke)
+
+        // UI State
+        let currentElement = EL.SAND;
+        let brushSize = 3;
+        let isDrawing = false;
+        let mouseX = 0;
+        let mouseY = 0;
+
+        // Setup UI Buttons
+        const btnContainer = document.getElementById('element-buttons');
+        Object.keys(ELEMENTS).forEach(key => {
+            const id = parseInt(key);
+            const el = ELEMENTS[id];
+            const btn = document.createElement('button');
+            btn.className = `element-btn ${id === currentElement ? 'active' : ''}`;
+            btn.innerText = el.name;
+            btn.style.borderBottom = `4px solid ${el.color}`;
+            btn.onclick = () => {
+                currentElement = id;
+                document.querySelectorAll('.element-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            };
+            btnContainer.appendChild(btn);
+        });
+
+        // Input Handling
+        const brushSlider = document.getElementById('brush-size');
+        brushSlider.oninput = (e) => {
+            brushSize = parseInt(e.target.value);
+            document.getElementById('brush-size-val').innerText = brushSize;
+        };
+
+        document.getElementById('btn-clear').onclick = () => {
+            grid.fill(0);
+            colorGrid.fill(0);
+            lifeGrid.fill(0);
+        };
+
+        const getMousePos = (e) => {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: Math.floor((e.clientX - rect.left) / SCALE),
+                y: Math.floor((e.clientY - rect.top) / SCALE)
+            };
+        };
+
+        const drawParticles = () => {
+            if (!isDrawing) return;
+            const halfBrush = Math.floor(brushSize / 2);
+            for (let y = -halfBrush; y <= halfBrush; y++) {
+                for (let x = -halfBrush; x <= halfBrush; x++) {
+                    // Make brush circular
+                    if (x*x + y*y > halfBrush*halfBrush) continue;
+                    
+                    const px = mouseX + x;
+                    const py = mouseY + y;
+                    
+                    if (px >= 0 && px < WIDTH && py >= 0 && py < HEIGHT) {
+                        const idx = py * WIDTH + px;
+                        // Only overwrite if it's empty, or if we are erasing, or if we are dropping something heavy on something light
+                        if (currentElement === EL.EMPTY || grid[idx] === EL.EMPTY) {
+                            setParticle(px, py, currentElement);
+                        }
+                    }
+                }
+            }
+        };
+
+        canvas.addEventListener('mousedown', (e) => {
+            isDrawing = true;
+            const pos = getMousePos(e);
+            mouseX = pos.x;
+            mouseY = pos.y;
+            drawParticles();
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            const pos = getMousePos(e);
+            mouseX = pos.x;
+            mouseY = pos.y;
+            drawParticles();
+        });
+
+        window.addEventListener('mouseup', () => { isDrawing = false; });
+
+        // Physics Engine Helpers
+        const setParticle = (x, y, id) => {
+            const idx = y * WIDTH + x;
+            grid[idx] = id;
+            
+            if (id === EL.EMPTY) {
+                colorGrid[idx * 3] = 0;
+                colorGrid[idx * 3 + 1] = 0;
+                colorGrid[idx * 3 + 2] = 0;
+                lifeGrid[idx] = 0;
+            } else {
+                const rgb = getColorVariant(ELEMENTS[id].color);
+                colorGrid[idx * 3] = rgb[0];
+                colorGrid[idx * 3 + 1] = rgb[1];
+                colorGrid[idx * 3 + 2] = rgb[2];
+                
+                // Add varied life to dynamic particles
+                if (ELEMENTS[id].life) {
+                    lifeGrid[idx] = ELEMENTS[id].life + Math.floor(Math.random() * 20);
+                } else {
+                    lifeGrid[idx] = 0;
+                }
+            }
+        };
+
+        const swapParticles = (idx1, idx2) => {
+            const tempId = grid[idx1];
+            grid[idx1] = grid[idx2];
+            grid[idx2] = tempId;
+
+            for (let i = 0; i < 3; i++) {
+                const tempCol = colorGrid[idx1 * 3 + i];
+                colorGrid[idx1 * 3 + i] = colorGrid[idx2 * 3 + i];
+                colorGrid[idx2 * 3 + i] = tempCol;
+            }
+
+            const tempLife = lifeGrid[idx1];
+            lifeGrid[idx1] = lifeGrid[idx2];
+            lifeGrid[idx2] = tempLife;
+        };
+
+        // Main Physics Update Loop
+        const updateWorld = () => {
+            let activeParticles = 0;
+            
+            // To prevent directional bias, randomly iterate left-to-right or right-to-left
+            const dir = Math.random() > 0.5 ? 1 : -1;
+            
+            // Iterate from bottom to top for gravity
+            for (let y = HEIGHT - 2; y >= 0; y--) {
+                const startX = dir === 1 ? 0 : WIDTH - 1;
+                const endX = dir === 1 ? WIDTH : -1;
+
+                for (let x = startX; x !== endX; x += dir) {
+                    const idx = y * WIDTH + x;
+                    const id = grid[idx];
+                    
+                    if (id === EL.EMPTY) continue;
+                    activeParticles++;
+
+                    const props = ELEMENTS[id];
+                    const belowIdx = (y + 1) * WIDTH + x;
+                    
+                    // Lifetime logic (Fire, Smoke)
+                    if (props.life) {
+                        lifeGrid[idx]--;
+                        if (lifeGrid[idx] <= 0) {
+                            // Fire turns into smoke, smoke turns into empty
+                            if (id === EL.FIRE) {
+                                setParticle(x, y, EL.SMOKE);
+                            } else {
+                                setParticle(x, y, EL.EMPTY);
+                            }
+                            continue;
+                        }
+                    }
+
+                    // --- POWDER PHYSICS (Sand) ---
+                    if (props.type === "powder") {
+                        if (grid[belowIdx] === EL.EMPTY || ELEMENTS[grid[belowIdx]].type === "liquid" || ELEMENTS[grid[belowIdx]].type === "gas") {
+                            swapParticles(idx, belowIdx);
+                        } else {
+                            // Check diagonals
+                            const bl = (y + 1) * WIDTH + (x - 1);
+                            const br = (y + 1) * WIDTH + (x + 1);
+                            const canGoLeft = x > 0 && (grid[bl] === EL.EMPTY || ELEMENTS[grid[bl]].type === "liquid");
+                            const canGoRight = x < WIDTH - 1 && (grid[br] === EL.EMPTY || ELEMENTS[grid[br]].type === "liquid");
+                            
+                            if (canGoLeft && canGoRight) {
+                                swapParticles(idx, Math.random() > 0.5 ? bl : br);
+                            } else if (canGoLeft) {
+                                swapParticles(idx, bl);
+                            } else if (canGoRight) {
+                                swapParticles(idx, br);
+                            }
+                        }
+                    }
+
+                    // --- LIQUID PHYSICS (Water, Acid) ---
+                    else if (props.type === "liquid") {
+                        if (grid[belowIdx] === EL.EMPTY || ELEMENTS[grid[belowIdx]].type === "gas") {
+                            swapParticles(idx, belowIdx);
+                        } else {
+                            const bl = (y + 1) * WIDTH + (x - 1);
+                            const br = (y + 1) * WIDTH + (x + 1);
+                            const canGoLeft = x > 0 && (grid[bl] === EL.EMPTY || ELEMENTS[grid[bl]].type === "gas");
+                            const canGoRight = x < WIDTH - 1 && (grid[br] === EL.EMPTY || ELEMENTS[grid[br]].type === "gas");
+                            
+                            if (canGoLeft && canGoRight) {
+                                swapParticles(idx, Math.random() > 0.5 ? bl : br);
+                            } else if (canGoLeft) {
+                                swapParticles(idx, bl);
+                            } else if (canGoRight) {
+                                swapParticles(idx, br);
+                            } else {
+                                // Dispersion (flow horizontally)
+                                const spread = props.dispersion;
+                                let moved = false;
+                                // Randomly choose left or right to start
+                                const hDir = Math.random() > 0.5 ? 1 : -1;
+                                
+                                for (let s = 1; s <= spread; s++) {
+                                    const nx = x + (s * hDir);
+                                    if (nx < 0 || nx >= WIDTH) break;
+                                    const nIdx = y * WIDTH + nx;
+                                    if (grid[nIdx] === EL.EMPTY || ELEMENTS[grid[nIdx]].type === "gas") {
+                                        swapParticles(idx, nIdx);
+                                        moved = true;
+                                        break;
+                                    } else if (ELEMENTS[grid[nIdx]].type !== "liquid") {
+                                        break; // Blocked by solid/powder
+                                    }
+                                }
+                                
+                                if (!moved) {
+                                    for (let s = 1; s <= spread; s++) {
+                                        const nx = x - (s * hDir);
+                                        if (nx < 0 || nx >= WIDTH) break;
+                                        const nIdx = y * WIDTH + nx;
+                                        if (grid[nIdx] === EL.EMPTY || ELEMENTS[grid[nIdx]].type === "gas") {
+                                            swapParticles(idx, nIdx);
+                                            break;
+                                        } else if (ELEMENTS[grid[nIdx]].type !== "liquid") {
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // --- GAS PHYSICS (Smoke) ---
+                    else if (props.type === "gas") {
+                        const aboveIdx = (y - 1) * WIDTH + x;
+                        if (y > 0 && (grid[aboveIdx] === EL.EMPTY || ELEMENTS[grid[aboveIdx]].density > props.density)) {
+                            // Chance to move up
+                            if (Math.random() > 0.3) swapParticles(idx, aboveIdx);
+                        } else if (y > 0) {
+                            // Disperse upwards diagonally
+                            const tl = (y - 1) * WIDTH + (x - 1);
+                            const tr = (y - 1) * WIDTH + (x + 1);
+                            const canGoLeft = x > 0 && grid[tl] === EL.EMPTY;
+                            const canGoRight = x < WIDTH - 1 && grid[tr] === EL.EMPTY;
+                            
+                            if (canGoLeft && canGoRight) {
+                                swapParticles(idx, Math.random() > 0.5 ? tl : tr);
+                            } else if (canGoLeft) {
+                                swapParticles(idx, tl);
+                            } else if (canGoRight) {
+                                swapParticles(idx, tr);
+                            } else {
+                                // Jiggle horizontally
+                                const lx = y * WIDTH + (x - 1);
+                                const rx = y * WIDTH + (x + 1);
+                                if (x > 0 && grid[lx] === EL.EMPTY && Math.random() > 0.5) swapParticles(idx, lx);
+                                else if (x < WIDTH - 1 && grid[rx] === EL.EMPTY && Math.random() > 0.5) swapParticles(idx, rx);
+                            }
+                        }
+                    }
+
+                    // --- COMPLEX REACTIONS ---
+
+                    // 1. Fire burns Wood/Plant, boils Water
+                    if (id === EL.FIRE) {
+                        // Check neighbors
+                        const neighbors = [
+                            {nx: x, ny: y-1}, {nx: x, ny: y+1}, 
+                            {nx: x-1, ny: y}, {nx: x+1, ny: y}
+                        ];
+                        
+                        for (let n of neighbors) {
+                            if (n.nx >= 0 && n.nx < WIDTH && n.ny >= 0 && n.ny < HEIGHT) {
+                                const nIdx = n.ny * WIDTH + n.nx;
+                                const nId = grid[nIdx];
+                                
+                                if (nId === EL.WOOD || nId === EL.PLANT) {
+                                    if (Math.random() < ELEMENTS[nId].flammability) {
+                                        setParticle(n.nx, n.ny, EL.FIRE);
+                                    }
+                                } else if (nId === EL.WATER) {
+                                    // Water puts out fire, turns to smoke (steam)
+                                    setParticle(x, y, EL.EMPTY);
+                                    if (Math.random() > 0.5) setParticle(n.nx, n.ny, EL.SMOKE);
+                                    break; 
+                                }
+                            }
+                        }
+                    }
+
+                    // 2. Plant grows when touching Water
+                    if (id === EL.PLANT) {
+                        const neighbors = [
+                            {nx: x, ny: y-1}, {nx: x, ny: y+1}, 
+                            {nx: x-1, ny: y}, {nx: x+1, ny: y}
+                        ];
+                        let nearWater = false;
+                        for (let n of neighbors) {
+                            if (n.nx >= 0 && n.nx < WIDTH && n.ny >= 0 && n.ny < HEIGHT) {
+                                if (grid[n.ny * WIDTH + n.nx] === EL.WATER) {
+                                    nearWater = true;
+                                    // Consume water sometimes
+                                    if (Math.random() < 0.05) setParticle(n.nx, n.ny, EL.EMPTY);
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // Grow into empty spaces
+                        if (nearWater && Math.random() < 0.02) {
+                            const growDir = neighbors[Math.floor(Math.random() * neighbors.length)];
+                            if (growDir.nx >= 0 && growDir.nx < WIDTH && growDir.ny >= 0 && growDir.ny < HEIGHT) {
+                                if (grid[growDir.ny * WIDTH + growDir.nx] === EL.EMPTY) {
+                                    setParticle(growDir.nx, growDir.ny, EL.PLANT);
+                                }
+                            }
+                        }
+                    }
+
+                    // 3. Acid melts mostly everything
+                    if (id === EL.ACID) {
+                        const neighbors = [{nx: x, ny: y+1}, {nx: x-1, ny: y}, {nx: x+1, ny: y}];
+                        for (let n of neighbors) {
+                            if (n.nx >= 0 && n.nx < WIDTH && n.ny >= 0 && n.ny < HEIGHT) {
+                                const nIdx = n.ny * WIDTH + n.nx;
+                                const nId = grid[nIdx];
+                                // Acid destroys things but not stone (or glass if we had it), and slowly destroys itself
+                                if (nId !== EL.EMPTY && nId !== EL.STONE && nId !== EL.ACID) {
+                                    if (Math.random() < 0.2) {
+                                        setParticle(n.nx, n.ny, EL.SMOKE); // Emit toxic smoke
+                                        if (Math.random() < 0.3) {
+                                            setParticle(x, y, EL.EMPTY); // Acid consumes itself
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return activeParticles;
+        };
+
+        // Fast Rendering Engine using ImageData
+        const imageData = ctx.createImageData(WIDTH * SCALE, HEIGHT * SCALE);
+        const data32 = new Uint32Array(imageData.data.buffer);
+
+        const renderWorld = () => {
+            // Map the low-res physics grid to the high-res canvas scale
+            for (let y = 0; y < HEIGHT; y++) {
+                for (let x = 0; x < WIDTH; x++) {
+                    const idx = y * WIDTH + x;
+                    
+                    // Skip calculating for empty space (black)
+                    if (grid[idx] === EL.EMPTY) {
+                        for (let sy = 0; sy < SCALE; sy++) {
+                            const pixelY = (y * SCALE + sy) * (WIDTH * SCALE);
+                            for (let sx = 0; sx < SCALE; sx++) {
+                                data32[pixelY + (x * SCALE + sx)] = 0xFF000000; // Alpha 255, RGB 0
+                            }
+                        }
+                        continue;
+                    }
+
+                    const r = colorGrid[idx * 3];
+                    const g = colorGrid[idx * 3 + 1];
+                    const b = colorGrid[idx * 3 + 2];
+                    
+                    // ABGR format for Uint32Array (Little Endian)
+                    const color = (255 << 24) | (b << 16) | (g << 8) | r;
+
+                    for (let sy = 0; sy < SCALE; sy++) {
+                        const pixelY = (y * SCALE + sy) * (WIDTH * SCALE);
+                        for (let sx = 0; sx < SCALE; sx++) {
+                            data32[pixelY + (x * SCALE + sx)] = color;
+                        }
+                    }
+                }
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+
+            // Render brush cursor
+            if (mouseX >= 0 && mouseX < WIDTH && mouseY >= 0 && mouseY < HEIGHT) {
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(mouseX * SCALE + SCALE/2, mouseY * SCALE + SCALE/2, (brushSize/2) * SCALE, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        };
+
+        // Main Game Loop
+        let lastTime = 0;
+        let frames = 0;
+        let fpsCounter = document.getElementById('fps-counter');
+        let particleCounter = document.getElementById('particle-counter');
+
+        const loop = (timestamp) => {
+            // FPS Calculation
+            if (timestamp - lastTime >= 1000) {
+                fpsCounter.innerText = frames;
+                frames = 0;
+                lastTime = timestamp;
+            }
+            frames++;
+
+            const activeCount = updateWorld();
+            particleCounter.innerText = activeCount;
+            
+            renderWorld();
+            requestAnimationFrame(loop);
+        };
+
+        // Initialization
+        requestAnimationFrame(loop);
+
+    </script>
+</body>
+</html>

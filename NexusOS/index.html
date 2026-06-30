@@ -1,0 +1,2315 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<title>NEXUS OS</title>
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Consolas,monospace;
+}
+
+body{
+    overflow:hidden;
+    background:#000;
+}
+
+#desktop{
+    position:fixed;
+    inset:0;
+
+    background:
+        radial-gradient(circle at 20% 20%,#112244,transparent 40%),
+        radial-gradient(circle at 80% 70%,#330055,transparent 40%),
+        linear-gradient(#06090f,#000);
+
+    overflow:hidden;
+}
+
+#taskbar{
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:0;
+
+    height:40px;
+
+    background:rgba(0,0,0,.8);
+
+    backdrop-filter:blur(10px);
+
+    display:flex;
+    align-items:center;
+
+    padding:0 10px;
+
+    border-top:1px solid #333;
+}
+
+#startButton{
+    width:90px;
+    height:28px;
+
+    background:#111;
+
+    color:white;
+
+    border:1px solid #555;
+
+    cursor:pointer;
+}
+
+#clock{
+    margin-left:auto;
+    color:white;
+}
+
+.window{
+    position:absolute;
+
+    width:600px;
+    height:400px;
+
+    background:#111;
+
+    border:1px solid #555;
+
+    box-shadow:
+        0 0 20px rgba(0,0,0,.5);
+
+    resize:both;
+    overflow:hidden;
+}
+
+.titlebar{
+    height:30px;
+
+    background:#1a1a1a;
+
+    display:flex;
+    align-items:center;
+
+    padding:0 10px;
+
+    color:white;
+
+    cursor:move;
+
+    user-select:none;
+}
+
+.content{
+    height:calc(100% - 30px);
+
+    overflow:auto;
+
+    color:white;
+
+    padding:10px;
+}
+
+.icon{
+    width:80px;
+    text-align:center;
+    color:white;
+    margin:15px;
+    cursor:pointer;
+}
+
+.iconImage{
+    width:50px;
+    height:50px;
+
+    background:#2244ff;
+
+    margin:auto;
+    margin-bottom:5px;
+
+    border-radius:10px;
+}
+
+#startMenu{
+    position:absolute;
+
+    width:300px;
+    height:450px;
+
+    bottom:45px;
+    left:10px;
+
+    background:#111;
+
+    border:1px solid #444;
+
+    display:none;
+
+    color:white;
+}
+
+.menuItem{
+    padding:10px;
+    border-bottom:1px solid #222;
+    cursor:pointer;
+}
+
+.menuItem:hover{
+    background:#222;
+}
+#cpuWidget{
+
+position:absolute;
+
+top:10px;
+right:10px;
+
+background:#111;
+
+padding:10px;
+
+color:white;
+
+border:1px solid #333;
+}
+</style>
+</head>
+<body>
+
+<div id="desktop">
+<div id="cpuWidget"></div>
+<div class="icon" ondblclick="openTerminal()">
+    <div class="iconImage"></div>
+    Terminal
+</div>
+
+<div class="icon" ondblclick="openPaint()">
+    <div class="iconImage"></div>
+    Paint
+</div>
+<div class="icon"
+ondblclick="openTaskManager()">
+
+<div class="iconImage"></div>
+
+TaskMgr
+
+</div>
+
+<div class="icon"
+ondblclick="openNotes()">
+
+<div class="iconImage"></div>
+
+Notes
+
+</div>
+
+<div class="icon"
+ondblclick="openCalculator()">
+
+<div class="iconImage"></div>
+
+Calc
+
+</div>
+
+
+<div id="startMenu">
+
+<div class="menuItem" onclick="openTerminal()">
+Terminal
+</div>
+
+<div class="menuItem" onclick="openPaint()">
+Paint
+</div>
+
+</div>
+
+<div id="taskbar">
+
+<button id="startButton">
+START
+</button>
+
+<div id="clock">
+00:00:00
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+let z = 100;
+
+function createWindow(title,html){
+
+    const win=document.createElement("div");
+
+    win.className="window";
+
+    win.style.left=
+        Math.random()*300+100+"px";
+
+    win.style.top=
+        Math.random()*200+50+"px";
+
+    win.style.zIndex=z++;
+
+    win.innerHTML=`
+
+        <div class="titlebar">
+
+            ${title}
+
+        </div>
+
+        <div class="content">
+
+            ${html}
+
+        </div>
+
+    `;
+
+    desktop.appendChild(win);
+
+    makeDraggable(win);
+
+    win.onclick=()=>{
+
+        win.style.zIndex=z++;
+
+    };
+
+    return win;
+}
+
+function makeDraggable(win){
+
+    const SNAP = 20;
+
+document.addEventListener(
+"mousemove",
+e=>{
+
+if(!dragging)return;
+
+let x=e.clientX-ox;
+let y=e.clientY-oy;
+
+if(x<SNAP)x=0;
+if(y<SNAP)y=0;
+
+if(
+x+win.offsetWidth>
+window.innerWidth-SNAP
+){
+x=
+window.innerWidth-
+win.offsetWidth;
+}
+
+if(
+y+win.offsetHeight>
+window.innerHeight-60
+){
+y=
+window.innerHeight-
+win.offsetHeight-
+40;
+}
+
+win.style.left=x+"px";
+win.style.top=y+"px";
+}
+);
+}
+
+function openTerminal(){
+
+    createWindow(
+        "Terminal",
+`
+<div id="terminal">
+
+NEXUS OS v0.1<br><br>
+
+Type commands soon...
+
+</div>
+`
+    );
+}
+
+function openPaint(){
+
+    createWindow(
+        "Paint",
+`
+<canvas id="paintCanvas"
+width="1000"
+height="700"
+style="
+background:white;
+cursor:crosshair;
+">
+</canvas>
+`
+    );
+
+    setTimeout(initPaint,50);
+}
+
+function initPaint(){
+
+    const c=
+        document.querySelector(
+            "#paintCanvas:last-of-type"
+        );
+
+    if(!c)return;
+
+    const ctx=
+        c.getContext("2d");
+
+    let drawing=false;
+
+    c.onmousedown=()=>drawing=true;
+
+    c.onmouseup=()=>drawing=false;
+
+    c.onmousemove=e=>{
+
+        if(!drawing)return;
+
+        ctx.fillRect(
+            e.offsetX,
+            e.offsetY,
+            3,
+            3
+        );
+    };
+}
+
+startButton.onclick=()=>{
+
+    startMenu.style.display=
+        startMenu.style.display==="block"
+        ?"none"
+        :"block";
+};
+
+setInterval(()=>{
+
+    const d=new Date();
+
+    clock.textContent=
+        d.toLocaleTimeString();
+
+},1000);
+/////////////////////////////////////////////////
+// NEXUS OS CORE
+/////////////////////////////////////////////////
+
+
+/////////////////////////////////////////////////
+// FILE SYSTEM
+/////////////////////////////////////////////////
+
+const fs = {
+
+    "/":{
+
+        type:"folder",
+
+        children:{
+
+            home:{
+                type:"folder",
+                children:{}
+            },
+
+            apps:{
+                type:"folder",
+                children:{}
+            },
+
+            system:{
+                type:"folder",
+                children:{}
+            },
+
+            readme:{
+                type:"file",
+                content:
+`Welcome to NEXUS OS
+
+Type:
+
+help
+
+to see commands.`
+            }
+
+        }
+    }
+};
+
+let currentPath = "/";
+
+/////////////////////////////////////////////////
+// WINDOW SYSTEM
+/////////////////////////////////////////////////
+
+function createWindow(title,html){
+
+    const win=document.createElement("div");
+
+    win.className="window";
+
+    win.style.left=
+        Math.random()*300+100+"px";
+
+    win.style.top=
+        Math.random()*150+50+"px";
+
+    win.style.zIndex=z++;
+
+    win.innerHTML=`
+        <div class="titlebar">
+            ${title}
+        </div>
+
+        <div class="content">
+            ${html}
+        </div>
+    `;
+
+    desktop.appendChild(win);
+
+    makeDraggable(win);
+
+    win.onclick=()=>{
+        win.style.zIndex=z++;
+    };
+
+    return win;
+}
+
+function makeDraggable(win){
+
+    const bar=
+        win.querySelector(".titlebar");
+
+    let dragging=false;
+
+    let ox=0;
+    let oy=0;
+
+    bar.onmousedown=e=>{
+
+        dragging=true;
+
+        ox=e.clientX-win.offsetLeft;
+        oy=e.clientY-win.offsetTop;
+    };
+
+    document.addEventListener(
+        "mousemove",
+        e=>{
+
+            if(!dragging)return;
+
+            win.style.left=
+                e.clientX-ox+"px";
+
+            win.style.top=
+                e.clientY-oy+"px";
+        }
+    );
+
+    document.addEventListener(
+        "mouseup",
+        ()=>dragging=false
+    );
+}
+
+/////////////////////////////////////////////////
+// FILE HELPERS
+/////////////////////////////////////////////////
+
+function getFolder(path){
+
+    const parts=
+        path.split("/")
+        .filter(Boolean);
+
+    let node=fs["/"];
+
+    for(const part of parts){
+
+        if(
+            !node.children[part]
+        ) return null;
+
+        node=node.children[part];
+    }
+
+    return node;
+}
+
+function getCurrentFolder(){
+
+    return getFolder(currentPath);
+}
+
+/////////////////////////////////////////////////
+// TERMINAL
+/////////////////////////////////////////////////
+
+function openTerminal(){
+
+    const win=createWindow(
+        "Terminal",
+`
+<div id="terminalOutput"
+style="
+height:95%;
+overflow:auto;
+white-space:pre-wrap;
+">
+NEXUS OS TERMINAL
+
+Type "help"
+
+</div>
+
+<input
+id="terminalInput"
+style="
+width:100%;
+background:black;
+color:lime;
+border:none;
+padding:5px;
+"
+/>
+`
+    );
+
+    const output=
+        win.querySelector(
+            "#terminalOutput"
+        );
+
+    const input=
+        win.querySelector(
+            "#terminalInput"
+        );
+
+    function print(text){
+
+        output.innerHTML+=
+            "\n"+text;
+
+        output.scrollTop=
+            output.scrollHeight;
+    }
+
+    input.focus();
+
+    input.addEventListener(
+        "keydown",
+        e=>{
+
+            if(e.key!=="Enter")
+                return;
+
+            const command=
+                input.value.trim();
+
+            print(
+                "> "+command
+            );
+
+            runCommand(
+                command,
+                print
+            );
+
+            input.value="";
+        }
+    );
+}
+
+/////////////////////////////////////////////////
+// COMMANDS
+/////////////////////////////////////////////////
+
+function runCommand(cmd,print){
+
+    const parts=
+        cmd.split(" ");
+
+    const command=
+        parts[0];
+
+    const args=
+        parts.slice(1);
+
+    //////////////////////////////////////////////////
+
+    if(command==="help"){
+
+        print(
+`
+help
+ls
+pwd
+cd
+mkdir
+touch
+cat
+echo
+clear
+date
+tree
+`
+        );
+    }
+
+    //////////////////////////////////////////////////
+
+    else if(command==="pwd"){
+
+        print(currentPath);
+    }
+    else if(command==="physics"){
+
+    openPhysics();
+
+}
+else if(command==="raycast"){
+
+openRaycaster();
+
+}
+else if(command==="game"){
+
+openGameEngine();
+
+}
+else if(command==="piano"){
+
+openPiano();
+
+}
+else if(command==="beep"){
+
+playTone(
+Number(args[0])||440,
+Number(args[1])||0.2
+);
+
+}
+else if(command==="ascii"){
+
+openAscii();
+
+}
+else if(command==="editor"){
+
+openEditor();
+
+}
+else if(command==="store"){
+
+print(
+Object.keys(
+storeApps
+).join("\n")
+);
+
+}
+else if(command==="download"){
+
+const app=args[0];
+
+if(storeApps[app]){
+
+packages[app]=true;
+
+print(
+app+
+" downloaded"
+);
+
+}else{
+
+print(
+"not found"
+);
+
+}
+}
+
+else if(command==="browser"){
+
+openBrowser();
+
+}
+else if(command==="script"){
+
+runNexusScript(
+
+`
+print Hello
+
+notes
+
+matrix
+`
+);
+
+}
+
+else if(command==="node"){
+
+networkNodes.push({
+
+id:
+networkNodes.length+1,
+
+online:true
+});
+
+print(
+"node created"
+);
+
+}
+else if(command==="nodes"){
+
+for(
+const n of networkNodes
+){
+
+print(
+`Node ${n.id}`
+);
+
+}
+}
+
+else if(command==="theme"){
+
+const t=
+themes[args[0]];
+
+if(!t){
+
+print(
+"theme not found"
+);
+
+return;
+}
+
+document.body.style.background=
+t.bg;
+
+document.body.style.color=
+t.fg;
+
+print(
+"theme loaded"
+);
+
+}
+else if(command==="ai"){
+
+print(
+
+askAI(
+args.join(" ")
+)
+
+);
+
+}
+else if(command==="sysinfo"){
+
+print(
+
+`
+NEXUS OS
+
+Processes:
+${processes.length}
+
+Packages:
+${Object.keys(
+packages
+).length}
+
+Path:
+${currentPath}
+
+Resolution:
+${window.innerWidth}
+x
+${window.innerHeight}
+`
+);
+
+}
+else if(command==="chaos"){
+    for(let i=0;i<50;i++){
+
+setTimeout(()=>{
+
+openMatrix();
+
+},i*100);
+
+}
+print(
+"Good luck."
+);
+}
+    //////////////////////////////////////////////////
+
+    else if(command==="ls"){
+
+        const folder=
+            getCurrentFolder();
+
+        const names=
+            Object.keys(
+                folder.children
+            );
+
+        print(
+            names.join("   ")
+        );
+    }
+
+    //////////////////////////////////////////////////
+
+    else if(command==="mkdir"){
+
+        const name=args[0];
+
+        if(!name){
+
+            print(
+                "missing name"
+            );
+
+            return;
+        }
+
+        getCurrentFolder()
+        .children[name]={
+
+            type:"folder",
+            children:{}
+        };
+
+        print(
+            "folder created"
+        );
+    }
+
+    //////////////////////////////////////////////////
+
+    else if(command==="touch"){
+
+        const name=args[0];
+
+        if(!name){
+
+            print(
+                "missing filename"
+            );
+
+            return;
+        }
+
+        getCurrentFolder()
+        .children[name]={
+
+            type:"file",
+
+            content:""
+        };
+
+        print(
+            "file created"
+        );
+    }
+
+    //////////////////////////////////////////////////
+
+    else if(command==="cat"){
+
+        const file=args[0];
+
+        const folder=
+            getCurrentFolder();
+
+        if(
+            !folder.children[file]
+        ){
+
+            print(
+                "file not found"
+            );
+
+            return;
+        }
+
+        print(
+            folder.children[file]
+            .content
+        );
+    }
+
+    //////////////////////////////////////////////////
+
+    else if(command==="echo"){
+
+        print(
+            args.join(" ")
+        );
+    }
+
+    //////////////////////////////////////////////////
+
+    else if(command==="clear"){
+
+        document
+        .querySelectorAll(
+            "#terminalOutput"
+        )
+        .forEach(
+            x=>x.innerHTML=""
+        );
+    }
+
+    //////////////////////////////////////////////////
+
+    else if(command==="date"){
+
+        print(
+            new Date()
+            .toString()
+        );
+    }
+
+    //////////////////////////////////////////////////
+
+    else if(command==="cd"){
+
+        const target=args[0];
+
+        if(!target){
+
+            currentPath="/";
+
+            print("/");
+            return;
+        }
+
+        if(target===".."){
+
+            const parts=
+                currentPath
+                .split("/")
+                .filter(Boolean);
+
+            parts.pop();
+
+            currentPath=
+                "/"+
+                parts.join("/");
+
+            if(
+                currentPath===""
+            )
+                currentPath="/";
+
+            print(
+                currentPath
+            );
+
+            return;
+        }
+
+        const folder=
+            getCurrentFolder();
+
+        if(
+            !folder.children[target]
+        ){
+
+            print(
+                "folder not found"
+            );
+
+            return;
+        }
+
+        currentPath+=
+            (
+                currentPath==="/"
+                ?""
+                :"/"
+            )+target;
+
+        print(
+            currentPath
+        );
+    }
+
+    //////////////////////////////////////////////////
+
+    else if(command==="tree"){
+
+        function walk(
+            node,
+            prefix=""
+        ){
+
+            let out="";
+
+            for(
+                const name
+                in node.children
+            ){
+
+                out+=
+                    prefix+
+                    name+
+                    "\n";
+
+                if(
+                    node.children[name]
+                    .type==="folder"
+                ){
+
+                    out+=walk(
+                        node.children[name],
+                        prefix+"  "
+                    );
+                }
+            }
+
+            return out;
+        }
+
+        print(
+            walk(fs["/"])
+        );
+    }
+    else if(command==="processes"){
+
+for(
+const p of processes
+){
+
+print(
+`${p.pid}
+${p.name}
+${p.memory}MB`
+);
+}
+
+}
+else if(command==="kill"){
+
+killProcess(
+args[0]
+);
+
+print(
+"process killed"
+);
+
+}
+else if(command==="install"){
+
+const app=args[0];
+
+packages[app]=true;
+
+print(
+app+
+" installed"
+);
+
+}
+else if(command==="apps"){
+
+print(
+Object.keys(
+packages
+).join("\n")
+);
+
+}
+else if(command==="run"){
+
+const app=args[0];
+
+if(
+!packages[app]
+){
+
+print(
+"not installed"
+);
+
+return;
+}
+
+switch(app){
+
+case "notes":
+openNotes();
+break;
+
+case "calculator":
+openCalculator();
+break;
+
+case "taskmgr":
+openTaskManager();
+break;
+
+case "matrix":
+openMatrix();
+break;
+
+case "particles":
+openParticles();
+break;
+}
+
+print(
+app+
+" launched"
+);
+
+}
+
+
+    //////////////////////////////////////////////////
+
+    else{
+
+        print(
+            "unknown command"
+        );
+    }
+}
+/////////////////////////////////////////////////
+// PROCESS MANAGER
+/////////////////////////////////////////////////
+
+let pidCounter = 1;
+
+const processes = [];
+
+function createProcess(name){
+
+    const process = {
+
+        pid: pidCounter++,
+
+        name: name,
+
+        cpu: Math.floor(
+            Math.random()*20
+        ),
+
+        memory:
+            Math.floor(
+                Math.random()*500
+            )+50
+    };
+
+    processes.push(process);
+
+    return process;
+}
+
+function killProcess(pid){
+
+    const index =
+        processes.findIndex(
+            p=>p.pid==pid
+        );
+
+    if(index>=0){
+
+        processes.splice(
+            index,
+            1
+        );
+    }
+}
+/////////////////////////////////////////////////
+// PACKAGE MANAGER
+/////////////////////////////////////////////////
+
+const packages = {
+
+    paint:true,
+
+    terminal:true,
+
+    taskmgr:true,
+
+    matrix:true,
+
+    particles:true,
+
+    notes:true,
+
+    calculator:true
+};
+function openTaskManager(){
+
+createProcess("Task Manager");
+
+const win=createWindow(
+"Task Manager",
+
+`
+<div id="taskList"></div>
+`
+);
+
+const list=
+win.querySelector(
+"#taskList"
+);
+
+function update(){
+
+let html="";
+
+for(
+const p of processes
+){
+
+html+=`
+<div style="
+padding:4px;
+border-bottom:1px solid #333;
+">
+
+PID ${p.pid}
+
+|
+
+${p.name}
+
+|
+
+CPU ${p.cpu}%
+
+|
+
+RAM ${p.memory}MB
+
+</div>
+`;
+}
+
+list.innerHTML=html;
+}
+
+update();
+
+setInterval(
+update,
+1000
+);
+
+}
+function openCalculator(){
+
+createProcess(
+"Calculator"
+);
+
+createWindow(
+"Calculator",
+
+`
+<input
+id="calcInput"
+style="
+width:100%;
+padding:10px;
+">
+
+<button
+onclick="
+document.getElementById(
+'calcResult'
+).innerText=
+eval(
+document.getElementById(
+'calcInput'
+).value
+)
+">
+Calculate
+</button>
+
+<div id="calcResult"></div>
+`
+);
+
+}
+function openNotes(){
+
+createProcess(
+"Notes"
+);
+
+createWindow(
+"Notes",
+
+`
+<textarea
+style="
+width:100%;
+height:100%;
+background:#111;
+color:white;
+">
+Write notes...
+</textarea>
+`
+);
+
+}
+function openMatrix(){
+
+createProcess(
+"Matrix"
+);
+
+const win=createWindow(
+"Matrix",
+
+`
+<canvas
+id="matrixCanvas"
+width="800"
+height="500">
+</canvas>
+`
+);
+
+setTimeout(()=>{
+
+const canvas=
+win.querySelector(
+"#matrixCanvas"
+);
+
+const ctx=
+canvas.getContext("2d");
+
+const letters=
+"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+const size=16;
+
+const columns=
+Math.floor(
+canvas.width/size
+);
+
+const drops=[];
+
+for(
+let i=0;
+i<columns;
+i++
+){
+
+drops[i]=1;
+}
+
+function draw(){
+
+ctx.fillStyle=
+"rgba(0,0,0,.08)";
+
+ctx.fillRect(
+0,
+0,
+canvas.width,
+canvas.height
+);
+
+ctx.fillStyle=
+"#00ff00";
+
+ctx.font=
+size+"px monospace";
+
+for(
+let i=0;
+i<drops.length;
+i++
+){
+
+const text=
+letters[
+Math.floor(
+Math.random()*
+letters.length
+)
+];
+
+ctx.fillText(
+text,
+i*size,
+drops[i]*size
+);
+
+if(
+drops[i]*size
+>
+canvas.height
+&&
+Math.random()>0.98
+){
+
+drops[i]=0;
+}
+
+drops[i]++;
+}
+
+requestAnimationFrame(
+draw
+);
+}
+
+draw();
+
+},100);
+
+}
+function openParticles(){
+
+createProcess(
+"Particles"
+);
+
+const win=createWindow(
+"Particles",
+
+`
+<canvas
+id="particleCanvas"
+width="800"
+height="500">
+</canvas>
+`
+);
+
+setTimeout(()=>{
+
+const canvas=
+win.querySelector(
+"#particleCanvas"
+);
+
+const ctx=
+canvas.getContext("2d");
+
+const particles=[];
+
+for(
+let i=0;
+i<500;
+i++
+){
+
+particles.push({
+
+x:
+Math.random()*
+canvas.width,
+
+y:
+Math.random()*
+canvas.height,
+
+vx:
+Math.random()*2-1,
+
+vy:
+Math.random()*2-1
+});
+}
+
+function draw(){
+
+ctx.clearRect(
+0,
+0,
+canvas.width,
+canvas.height
+);
+
+for(
+const p of particles
+){
+
+p.x+=p.vx;
+p.y+=p.vy;
+
+if(
+p.x<0||
+p.x>canvas.width
+)
+p.vx*=-1;
+
+if(
+p.y<0||
+p.y>canvas.height
+)
+p.vy*=-1;
+
+ctx.fillRect(
+p.x,
+p.y,
+2,
+2
+);
+}
+
+requestAnimationFrame(
+draw
+);
+}
+
+draw();
+
+},100);
+
+}
+function openPhysics(){
+
+createProcess(
+"Physics Sandbox"
+);
+
+const win=createWindow(
+"Physics Sandbox",
+
+`
+<canvas
+id="physicsCanvas"
+width="900"
+height="600"
+style="background:#000">
+</canvas>
+`
+);
+
+setTimeout(()=>{
+
+const canvas=
+win.querySelector(
+"#physicsCanvas"
+);
+
+const ctx=
+canvas.getContext("2d");
+
+const objects=[];
+
+for(let i=0;i<200;i++){
+
+objects.push({
+
+x:Math.random()*800,
+y:Math.random()*100,
+
+vx:Math.random()*4-2,
+vy:0,
+
+r:
+Math.random()*10+4
+});
+}
+
+function frame(){
+
+ctx.clearRect(
+0,0,
+canvas.width,
+canvas.height
+);
+
+for(
+const o of objects
+){
+
+o.vy+=0.2;
+
+o.x+=o.vx;
+o.y+=o.vy;
+
+if(
+o.y+o.r>
+canvas.height
+){
+
+o.y=
+canvas.height-o.r;
+
+o.vy*=-0.8;
+}
+
+ctx.beginPath();
+
+ctx.arc(
+o.x,
+o.y,
+o.r,
+0,
+Math.PI*2
+);
+
+ctx.fill();
+}
+
+requestAnimationFrame(
+frame
+);
+}
+
+frame();
+
+},50);
+}
+function openAscii(){
+
+createProcess(
+"ASCII Renderer"
+);
+
+const chars=
+" .:-=+*#%@";
+
+const win=createWindow(
+"ASCII Renderer",
+
+`
+<pre id="asciiScreen"
+style="
+font-size:8px;
+line-height:8px;
+background:black;
+color:#00ff00;
+">
+</pre>
+`
+);
+
+const screen=
+win.querySelector(
+"#asciiScreen"
+);
+
+let t=0;
+
+function draw(){
+
+let out="";
+
+for(
+let y=0;
+y<50;
+y++
+){
+
+for(
+let x=0;
+x<120;
+x++
+){
+
+const v=
+Math.sin(
+x*0.1+t
+)+
+Math.cos(
+y*0.1+t
+);
+
+const index=
+Math.floor(
+(v+2)/4*
+(chars.length-1)
+);
+
+out+=
+chars[index];
+}
+
+out+="\n";
+}
+
+screen.textContent=
+out;
+
+t+=0.05;
+
+requestAnimationFrame(
+draw
+);
+}
+
+draw();
+}
+const webPages={
+
+home:`
+<h1>NEXUS NET</h1>
+
+Welcome to the future.
+`,
+
+about:`
+<h1>About</h1>
+
+This OS should not exist.
+`,
+
+cats:`
+<pre>
+
+ /\_/\\\\
+( o.o )
+ > ^ <
+
+</pre>
+`
+};
+function openBrowser(){
+
+createProcess(
+"Browser"
+);
+
+const win=createWindow(
+"Browser",
+
+`
+<input
+id="urlBar"
+value="home"
+style="width:100%">
+
+<div
+id="browserPage"
+style="
+padding:10px;
+overflow:auto;
+">
+</div>
+`
+);
+
+const url=
+win.querySelector(
+"#urlBar"
+);
+
+const page=
+win.querySelector(
+"#browserPage"
+);
+
+function load(){
+
+page.innerHTML=
+webPages[
+url.value
+]||
+"404";
+}
+
+url.onchange=load;
+
+load();
+}
+function runNexusScript(code){
+
+const lines=
+code.split("\n");
+
+for(
+const line of lines
+){
+
+const parts=
+line.trim()
+.split(" ");
+
+const cmd=
+parts[0];
+
+if(cmd==="print"){
+
+alert(
+parts.slice(1)
+.join(" ")
+);
+}
+
+if(cmd==="notes"){
+
+openNotes();
+}
+
+if(cmd==="matrix"){
+
+openMatrix();
+}
+
+if(cmd==="physics"){
+
+openPhysics();
+}
+}
+}
+setInterval(()=>{
+
+cpuWidget.innerHTML=
+
+`
+Processes:
+${processes.length}
+
+RAM:
+${processes.reduce(
+(a,b)=>
+a+b.memory,
+0
+)}
+MB
+`;
+
+},500);
+/////////////////////////////////////////////////
+// AUDIO ENGINE
+/////////////////////////////////////////////////
+
+const audioContext =
+new (
+window.AudioContext ||
+window.webkitAudioContext
+)();
+
+function playTone(
+freq=440,
+duration=0.2
+){
+
+const osc =
+audioContext.createOscillator();
+
+const gain =
+audioContext.createGain();
+
+osc.connect(gain);
+gain.connect(
+audioContext.destination
+);
+
+osc.frequency.value=
+freq;
+
+osc.type="sawtooth";
+
+gain.gain.value=0.1;
+
+osc.start();
+
+setTimeout(()=>{
+
+osc.stop();
+
+},duration*1000);
+
+}
+function openPiano(){
+
+createProcess(
+"Piano"
+);
+
+const notes=[
+261,293,329,349,
+392,440,493,523
+];
+
+let html="";
+
+for(
+let i=0;
+i<notes.length;
+i++
+){
+
+html+=`
+<button
+onclick="
+playTone(${notes[i]},0.3)
+"
+>
+${i+1}
+</button>
+`;
+}
+
+createWindow(
+"Piano",
+html
+);
+
+}
+class Sprite{
+
+constructor(
+x,
+y,
+size,
+color
+){
+
+this.x=x;
+this.y=y;
+
+this.vx=0;
+this.vy=0;
+
+this.size=size;
+
+this.color=color;
+}
+
+draw(ctx){
+
+ctx.fillStyle=
+this.color;
+
+ctx.fillRect(
+this.x,
+this.y,
+this.size,
+this.size
+);
+}
+
+update(){
+
+this.x+=this.vx;
+this.y+=this.vy;
+}
+
+}
+function openGameEngine(){
+
+createProcess(
+"Game Engine"
+);
+
+const win=
+createWindow(
+"Game Engine",
+
+`
+<canvas
+id="gameCanvas"
+width="900"
+height="600">
+</canvas>
+`
+);
+
+setTimeout(()=>{
+
+const canvas=
+win.querySelector(
+"#gameCanvas"
+);
+
+const ctx=
+canvas.getContext("2d");
+
+const player=
+new Sprite(
+100,
+100,
+30,
+"white"
+);
+
+const keys={};
+
+window.addEventListener(
+"keydown",
+e=>{
+
+keys[e.key]=true;
+
+}
+);
+
+window.addEventListener(
+"keyup",
+e=>{
+
+keys[e.key]=false;
+
+}
+);
+
+function loop(){
+
+ctx.fillStyle=
+"black";
+
+ctx.fillRect(
+0,
+0,
+canvas.width,
+canvas.height
+);
+
+if(keys["w"])
+player.y-=5;
+
+if(keys["s"])
+player.y+=5;
+
+if(keys["a"])
+player.x-=5;
+
+if(keys["d"])
+player.x+=5;
+
+player.draw(ctx);
+
+requestAnimationFrame(
+loop
+);
+}
+
+loop();
+
+},100);
+
+}
+function openRaycaster(){
+
+createProcess(
+"Raycaster"
+);
+
+const win=
+createWindow(
+"Raycaster",
+
+`
+<canvas
+id="rayCanvas"
+width="800"
+height="500">
+</canvas>
+`
+);
+
+setTimeout(()=>{
+
+const canvas=
+win.querySelector(
+"#rayCanvas"
+);
+
+const ctx=
+canvas.getContext("2d");
+
+let t=0;
+
+function draw(){
+
+ctx.clearRect(
+0,
+0,
+canvas.width,
+canvas.height
+);
+
+for(
+let x=0;
+x<canvas.width;
+x+=4
+){
+
+const h=
+Math.abs(
+Math.sin(
+x*0.01+t
+)
+)*300;
+
+ctx.fillRect(
+x,
+250-h/2,
+4,
+h
+);
+}
+
+t+=0.02;
+
+requestAnimationFrame(
+draw
+);
+}
+
+draw();
+
+},50);
+
+}
+const storeApps={
+
+music:true,
+paint:true,
+browser:true,
+game:true,
+raycast:true,
+physics:true,
+ascii:true
+
+};
+function openEditor(){
+
+createProcess(
+"Editor"
+);
+
+createWindow(
+"Editor",
+
+`
+<textarea
+id="editor"
+
+style="
+width:100%;
+height:90%;
+background:black;
+color:lime;
+">
+
+</textarea>
+`
+);
+
+}
+const networkNodes=[];
+function openParticleEditor(){
+
+createProcess(
+"Particle Editor"
+);
+
+createWindow(
+"Particle Editor",
+
+`
+Particles:
+
+<input
+id="particleCount"
+value="500">
+
+<button>
+
+Generate
+
+</button>
+`
+);
+
+}
+const themes={
+
+dark:{
+bg:"#000",
+fg:"#fff"
+},
+
+matrix:{
+bg:"#001100",
+fg:"#00ff00"
+},
+
+ocean:{
+bg:"#001133",
+fg:"#44ccff"
+}
+
+};
+function askAI(text){
+
+text=
+text.toLowerCase();
+
+if(
+text.includes("hello")
+)
+return "Hello.";
+
+if(
+text.includes("name")
+)
+return "NEXUS AI.";
+
+if(
+text.includes("matrix")
+)
+return "The Matrix is everywhere.";
+
+return "Unknown.";
+}
+</script>
+
+</body>
+</html>
